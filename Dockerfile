@@ -1,21 +1,25 @@
 # Dockerfile
 
-# CORRECTED: Using the Amazon ECR Public Gallery URI for the Python image 
-# to bypass Docker Hub rate limits for AWS services.
+# Fix 1: Use ECR Public Gallery for the base image to avoid rate limits.
 FROM public.ecr.aws/docker/library/python:3.10-slim
 
 WORKDIR /app
 
-# Best practice: Copy only what's necessary for installation first
+# Copy requirements before copying the rest of the application.
 COPY requirements.txt .
-# Run pip install 
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
+# Fix 2: Install system build tools (build-essential) necessary for many Python packages 
+# (like Flask dependencies) in minimal OS images.
+RUN apt-get update && \
+    apt-get install -y build-essential && \
+    pip install --no-cache-dir -r requirements.txt && \
+    # Clean up and remove build-essential to reduce the final image size
+    apt-get remove -y build-essential && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY . .
 
-# Expose the application port (assuming your Flask/other app runs on 5000)
 EXPOSE 5000
 
-# Specify the command to run the application
 CMD ["python", "app.py"]
